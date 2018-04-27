@@ -51,7 +51,7 @@ echo -e "zone_name=$zone_name \nRegion=$region \nRecorName=$rec_name \nec2_tag_k
 echo "==========================="
 
 ## Creating Yaml file
-cat > route53_${i}.yml <<EOF
+cat > route53.yml <<EOF
 ---
 - hosts: localhost
   vars:
