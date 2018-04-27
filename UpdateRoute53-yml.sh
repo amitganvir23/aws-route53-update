@@ -87,7 +87,7 @@ cat > /route53.yml <<EOF
    - cron:
        name: "a job for reboot"
        special_time: reboot
-       job: "ansible-playbook -i /${my_inventory} /route53.yml -vv"
+       job: "ansible-playbook -i /${my_inventory} /route53.yml -vv > /route53-cron.log"
 
 
 EOF
