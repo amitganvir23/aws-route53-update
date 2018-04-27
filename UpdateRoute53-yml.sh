@@ -84,6 +84,13 @@ cat > route53.yml <<EOF
       value: "{{private_ips.stdout_lines}}"
       #value: "{{private_ip}}"
 
+   - cron:
+       name: "a job for reboot"
+       special_time: reboot
+       job: "ansible-playbook -i ${my_inventory} route53.yml -vv"
+
+
 EOF
 ## Playing playbook to update Route53
-ansible-playbook -i $my_inventory route53.yml -vvv
+ansible-playbook -i $my_inventory route53.yml -vv
+
