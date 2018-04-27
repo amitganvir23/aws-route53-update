@@ -40,7 +40,7 @@ ec2_tag_value=Couchbase-${stackName}-Server*
 
 ## Making Inventory file
 my_inventory=myhosts
-cat > $my_inventory <<EOF
+cat > /${my_inventory} <<EOF
 [localhost]
 localhost ansible_connection=local ansible_python_interpreter=python
 EOF
@@ -51,7 +51,7 @@ echo -e "zone_name=$zone_name \nRegion=$region \nRecorName=$rec_name \nec2_tag_k
 echo "==========================="
 
 ## Creating Yaml file
-cat > route53.yml <<EOF
+cat > /route53.yml <<EOF
 ---
 - hosts: localhost
   vars:
@@ -87,10 +87,10 @@ cat > route53.yml <<EOF
    - cron:
        name: "a job for reboot"
        special_time: reboot
-       job: "ansible-playbook -i ${my_inventory} route53.yml -vv"
+       job: "ansible-playbook -i /${my_inventory} /route53.yml -vv"
 
 
 EOF
 ## Playing playbook to update Route53
-ansible-playbook -i $my_inventory route53.yml -vv
+ansible-playbook -i /${my_inventory} /route53.yml -vv
 
