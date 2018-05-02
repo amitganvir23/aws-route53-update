@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo "Running UpdateRoute53.sh"
-stackName=$1
-#stackName=glp-test
+#stackName=$1
+stackName=glp-test
 
 yum install epel-release -y
 curl -O https://bootstrap.pypa.io/get-pip.py
@@ -20,21 +20,22 @@ echo stackName \'$stackName\'
 
 
 ## AWS region and credentails
-region=$2
-#region=us-west-1
+#region=${REGION}
+region=us-west-1
 
 ## Route53 zone name and record name
-zone_name=$3
-rec_name=$4
-#zone_name=glp-test.com
-#rec_name=test.glp-test.com
+#zone_name=${ZONE_NAME}
+#rec_name=${RECORD_NAME}
+zone_name=glp-test.com
+rec_name=test.glp-test.com
 
 ## Ec2-tag
-ec2_tag_key=$5
-#ec2_tag_key=Name
-ec2_tag_value=$6
-###-Server and ServerRally covered in value
-#ec2_tag_value=Couchbase-${stackName}-Server*
+#ec2_tag_key=${EC2_TAG_KEY}
+#ec2_tag_value=${EC2_TAG_VALUE}
+
+ec2_tag_key=Name
+#-Server and ServerRally covered in value
+ec2_tag_value=Couchbase-${stackName}-Server*
 
 
 ## Making Inventory file
