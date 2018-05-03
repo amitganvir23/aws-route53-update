@@ -19,7 +19,7 @@ echo stackName \'$stackName\'
 #ec2_tag_value=${stackName}
 
 
-## AWS region
+## AWS region and credentails
 region=$2
 #region=us-west-1
 
@@ -33,14 +33,9 @@ rec_name=$4
 ec2_tag_key=$5
 #ec2_tag_key=Name
 ###-Server and ServerRally covered in value
-ec2_tag_value=$6
-#ec2_tag_value=${stackName}-Server*
+#ec2_tag_value=$6
+ec2_tag_value=${stackName}-Server*
 #ec2_tag_value=Couchbase-${stackName}-Server*
-
-
-## AWS VPC ID
-vpc_id=$7
-#vpc_id=vpc-e80a6180
 
 
 ## Making Inventory file
@@ -61,7 +56,6 @@ cat > /route53.yml <<EOF
 - hosts: localhost
   vars:
        - REGION: ${region}
-       - vpc_id: ${vpc_id}
        - zone_name: ${zone_name}
        - rec_name: ${rec_name}
        - ec2_tag_key: ${ec2_tag_key}
@@ -77,13 +71,6 @@ cat > /route53.yml <<EOF
 
    - set_fact: private_ip="{{private_ip|default([])+[item]}}"
      with_items: "{{ private_ips.stdout_lines }}"
-
-   - name: create a private zone
-     route53_zone:
-      zone: "{{zone_name}}"
-      vpc_id: '{{ vpc_id }}'
-      vpc_region: "{{REGION}}"
-      comment: Managed by CloudFormation
 
    - name: Updatading route 53
      route53:
