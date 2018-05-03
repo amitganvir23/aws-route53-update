@@ -32,8 +32,9 @@ rec_name=$4
 ## Ec2-tag
 ec2_tag_key=$5
 #ec2_tag_key=Name
-ec2_tag_value=$6
 ###-Server and ServerRally covered in value
+#ec2_tag_value=$6
+ec2_tag_value=${stackName}-Server*
 #ec2_tag_value=Couchbase-${stackName}-Server*
 
 
