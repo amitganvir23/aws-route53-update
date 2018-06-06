@@ -96,22 +96,6 @@ cat > /route53.yml <<EOF
       ttl: 30
       value: "{{private_ips.stdout_lines}}"
       #value: "{{private_ip}}"
-     register: status_result
-     ignore_errors: true
-
-   - name: Updatading route 53 new
-     route53:
-      state: present
-      overwrite: true
-      private_zone: true
-      zone: "{{zone_name}}"
-      record: "{{rec_name}}"
-      type: A
-      ttl: 30
-      value: "{{private_ips.stdout_lines}}"
-      #value: "{{private_ip}}"
-     when: status_result is failed
-
 
    - cron:
        name: "a job for reboot"
