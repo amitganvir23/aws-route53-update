@@ -85,9 +85,9 @@ cat > /route53.yml <<EOF
       vpc_region: "{{REGION}}"
       comment: Managed by CloudFormation
 
-   - name: Updatading route 53
+   - name: Updatading route 53 with new module
      route53:
-      state: present
+      command: create
       overwrite: true
       private_zone: true
       zone: "{{zone_name}}"
@@ -99,7 +99,7 @@ cat > /route53.yml <<EOF
      register: status_result
      ignore_errors: true
 
-   - name: Updatading route 53 new
+   - name: Updatading route 53 with old module
      route53:
       state: present
       overwrite: true
