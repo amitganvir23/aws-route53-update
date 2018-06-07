@@ -11,6 +11,7 @@ stackName=$5
 apt-get -y update
 apt-get -y install jq
 
+apt-get install -y awscli ansible
 if [ -z "$6" ]
 then
   echo "This node is part of the autoscaling group that contains the rally point."
