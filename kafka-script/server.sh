@@ -12,6 +12,15 @@ apt-get -y update
 apt-get -y install jq
 
 apt-get install -y awscli ansible
+
+curl -O https://bootstrap.pypa.io/get-pip.py
+export PATH=~/.local/bin:$PATH
+python get-pip.py --user
+pip install awscli --upgrade --user
+pip install boto
+
+pip install ansible --upgrade
+
 if [ -z "$6" ]
 then
   echo "This node is part of the autoscaling group that contains the rally point."

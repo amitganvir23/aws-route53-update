@@ -14,7 +14,7 @@
 ##  JAVA
 # --------------------------------------
       - java_home: /usr/local/java/jdk
-      #- jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u101-b13/jdk-8u101-linux-x64.tar.gz	  
+      #- jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u101-b13/jdk-8u101-linux-x64.tar.gz
       - jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.tar.gz
       - jdk_archive_filename: jdk-8u171-linux-x64.tar.gz
       #- jdk_version: jdk1.8.0_101
@@ -40,6 +40,9 @@
       - url: https://www.apache.org/dist/zookeeper/zookeeper-{{ version }}/zookeeper-{{ version }}.tar.gz
 
   tasks:
+   - name: Create a User `"{{ user }}"` for all our Hadoop Modules.
+     user: name={{ user }} password={{ password }}
+
    - name: Collecting Private IP address
      shell: "aws --region {{ REGION }} ec2 describe-instances --filters \"Name=tag:{{ ec2_tag_key }},Values={{ ec2_tag_value }}\" \"Name=network-interface.addresses.private-ip-address,Values=*\" --query 'Reservations[*].Instances[*].{InstanceId:InstanceId,PrivateDnsName:PrivateDnsName,State:State.Name, IP:NetworkInterfaces[0].PrivateIpAddress}'|grep -w IP|cut -d ':' -f 2|tr -d ','|tr -d '\"'|sed 's/ //g'"
      register: private_ips
@@ -116,7 +119,7 @@
 #-----------------------------
    - name: Copying sample file zoo_sample.cfg to zoo.cfg
      copy: src={{ soft_link_base_path }}/zookeeper/conf/zoo_sample.cfg  dest={{ soft_link_base_path }}/zookeeper/conf/zoo.cfg owner={{ user }} group={{ group }} mode=0644
-	 
+
    - name: Configuring zoo.cfg file
      lineinfile:
        path: "{{ soft_link_base_path }}/zookeeper/conf/zoo.cfg"
@@ -150,6 +153,7 @@
      file: path={{ item }} owner={{ user }} group={{ group }} state=directory
      with_items:
        - "{{ data_store }}"
+       - "{{ logging }}"
 
 ##Zid - sotring Public/Ip
 #-----------------------------
