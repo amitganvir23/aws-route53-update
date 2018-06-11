@@ -1,0 +1,76 @@
+---
+- name: Create EC2 instances for Zookeeper
+  hosts: localhost
+  connection: local
+#  remote_user: ubuntu
+#  become: true
+#  become_method: sudo
+  gather_facts: no
+  vars:
+#  JAVA
+      - java_home: /usr/local/java/jdk
+      - jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.tar.gz
+      #- jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u101-b13/jdk-8u101-linux-x64.tar.gz
+      - jdk_archive_filename: jdk-8u171-linux-x64.tar.gz
+      - jdk_version: jdk1.8.0_171
+      #- jdk_version: jdk1.8.0_101
+
+  tasks:
+
+   #- name: Install and start Zookeeper
+
+   #- name: Install JDK on Zookeeper instances
+   # Install JDK 1.7 and perform other bootstrap tasks
+   - name: JDK | Oracle JDK | Make sure openjdk is uninstalled
+     apt: pkg=openjdk-6-jdk state=absent
+
+   - name: JDK | Oracle JDK | Make sure openjdk is uninstalled
+     apt: pkg=openjdk-7-jdk state=absent
+
+   - name: JDK | Oracle JDK | Make sure openjdk is uninstalled
+     apt: pkg=openjdk-8-jdk state=absent
+
+   - name: JDK | Oracle JDK | Make a directory that holds the Java binaries
+     file: path=/usr/local/java state=directory
+
+   - name: Download JDK
+     get_url: url={{ jdk_archive_url }} dest=/mnt/{{ jdk_archive_filename }} mode=0644 validate_certs=no headers='Cookie:oraclelicense=accept-securebackup-cookie'
+     #get_url: url={{ jdk_archive_url }} dest=/mnt/{{ jdk_archive_filename }} mode=0644 validate_certs=no
+     #shell: "wget --no-check-certificate --no-cookies --header 'Cookie: oraclelicense=accept-securebackup-cookie' {{ jdk_archive_url }}"
+
+   - name: JDK | Oracle JDK | Unpack the compressed JDK binaries
+#     command: tar -xzf /mnt/{{ jdk_archive_filename }} chdir=/usr/local/java creates=/usr/local/java/{{ jdk_version }}
+     shell: "tar -xvzf /mnt/{{ jdk_archive_filename }} -C /usr/local/java creates=/usr/local/java/{{ jdk_version }}"
+
+   - name: JDK | Oracle JDK | Update the symbolic link to the JDK install
+     file: path={{ java_home }} src=/usr/local/java/{{ jdk_version }} state=link force=yes
+
+   - name: JDK | Oracle JDK | Add the JDK binaries to the system path (/etc/profile)
+     lineinfile: dest=/etc/profile regexp='^JAVA_HOME={{java_home}}' line="JAVA_HOME={{java_home}}" state=present
+
+   - name: JDK | Oracle JDK | Add the JDK binaries to the system path (/etc/profile)
+     lineinfile: dest=/etc/profile regexp='^PATH=.*JAVA_HOME.*' line="PATH=$PATH:$HOME/bin:$JAVA_HOME/bin" state=present
+
+   - name: Remove alternatives before we set them.
+     command: rm -f /var/lib/alternatives/{{ item }}
+     with_items:
+       - java
+       - javac
+       - javaws
+       - javah
+       - jar
+       - jps
+
+   - name: JDK | Oracle JDK | Inform the system where Oracle JDK is located
+     alternatives: name={{ item }} link=/usr/bin/{{ item }} path=/usr/local/java/jdk/bin/{{ item }}
+     with_items:
+       - java
+       - javac
+       - javaws
+       - javah
+       - jar
+       - jps
+
+#  Zookeeper
+#
+

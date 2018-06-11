@@ -1,0 +1,112 @@
+---
+- name: Configuring EC2 instances for Zookeeper
+  hosts: localhost
+  connection: local
+#  remote_user: ubuntu
+#  become: true
+#  become_method: sudo
+  gather_facts: no
+  vars:
+      - REGION: ap-southeast-2
+      - ec2_tag_key: StackService
+      - ec2_tag_value: glp-kafka-test-zookeeper
+# --------------------------------------
+##  JAVA
+# --------------------------------------
+      - java_home: /usr/local/java/jdk
+      - jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.tar.gz
+      #- jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u101-b13/jdk-8u101-linux-x64.tar.gz
+      - jdk_archive_filename: jdk-8u171-linux-x64.tar.gz
+      - jdk_version: jdk1.8.0_171
+      #- jdk_version: jdk1.8.0_101
+
+# --------------------------------------
+## Common -  Common Location information.
+# --------------------------------------
+#
+      - install_base_path: /usr/local
+      - soft_link_base_path: /opt
+
+# --------------------------------------
+## Zookeeper
+# --------------------------------------
+#zookeeper:
+      - java_home: /usr/local/java/jdk
+      - version: 3.4.10
+      - user: zkadmin
+      - group: zkadmin
+      - password: $6$SDOmVPRk$Jcb/qm2QTKsLABvBHx/CYtsgmShobAr7BwhWWbrrQIHfjndIzcbJhv1b2Dh2Rv.KgWhjTipT3MJUBQFf1g5O70
+      - data_store: /mnt/data/zookeeper
+      - logging: /mnt/data/zookeeper_logging
+      - url: https://www.apache.org/dist/zookeeper/zookeeper-{{ version }}/zookeeper-{{ version }}.tar.gz
+      #- url: https://www.apache.org/dist/zookeeper/zookeeper-3.4.10/zookeeper-3.4.10.tar.gz
+
+
+  tasks:
+
+   # Download Zookeeper
+   - name: Creating data directory
+     file: path=/mnt/data state=directory owner={{ user }} group={{ group }}
+
+   # Updating Configuration File in Zookeeper.
+#   - name: Updating Configuration File in Zookeeper.
+#     template: src={{ item }} dest={{ soft_link_base_path }}/zookeeper/conf/{{ item }}  owner={{ user }} group={{ group }}
+#     with_items:
+#       - zoo.cfg
+#       - log4j.properties
+
+   - name: Collecting Private IP address
+     shell: "aws --region {{ REGION }} ec2 describe-instances --filters \"Name=tag:{{ ec2_tag_key }},Values={{ ec2_tag_value }}\" \"Name=network-interface.addresses.private-ip-address,Values=*\" --query 'Reservations[*].Instances[*].{InstanceId:InstanceId,PrivateDnsName:PrivateDnsName,State:State.Name, IP:NetworkInterfaces[0].PrivateIpAddress}'|grep -w IP|cut -d ':' -f 2|tr -d ','|tr -d '\"'|sed 's/ //g'"
+     register: private_ips
+
+#-----------------------------
+## Configure Zookeeper
+#-----------------------------
+   - name: Copying sample file zoo_sample.cfg to zoo.cfg
+     copy: src={{ soft_link_base_path }}/zookeeper/conf/zoo_sample.cfg  dest={{ soft_link_base_path }}/zookeeper/conf/zoo.cfg owner={{ user }} group={{ group }} mode=0644
+
+   - name: Configuring zoo.cfg file
+     lineinfile:
+       path: "{{ soft_link_base_path }}/zookeeper/conf/zoo.cfg"
+       line: "{{ item }}"
+     with_items:
+       - "# The number of snapshots to retain in dataDir\nautopurge.snapRetainCount=3"
+       - "# Purge task interval in hours\nautopurge.purgeInterval=24"
+
+## Adding Zookeeper Private IP in config file
+   - name: Configuring zoo.cfg file
+     lineinfile:
+       path: "{{ soft_link_base_path }}/zookeeper/conf/zoo.cfg"
+       line: "server.{{ item.0 + 1}}={{ item.1 }}:2888:3888"
+     with_indexed_items:
+       - "{{ private_ips.stdout_lines }}"
+
+   - lineinfile:
+       path: "{{ soft_link_base_path }}/zookeeper/conf/zoo.cfg"
+       regexp: '^dataDir='
+       line: 'dataDir={{ data_store }}'
+
+   - name: Configuring log4j.properties file
+     lineinfile:
+       path: "{{ soft_link_base_path }}/zookeeper/conf/log4j.properties"
+       regexp: '^zookeeper.log.dir='
+       line: 'zookeeper.log.dir={{ logging }}'
+
+#-----------------------------
+   # Creating a directory for Zookeeper.
+   - name: Creating a directory for Zookeeper.
+     file: path={{ item }} owner={{ user }} group={{ group }} state=directory
+     with_items:
+       - "{{ data_store }}"
+       - "{{ logging }}"
+
+   - name: Create `myid` file
+     file: path={{ data_store }}/myid state=touch mode=644  owner={{ user }} group={{ group }}
+
+   - name: "Initializing `myid` File for Zookeeper"
+     lineinfile: dest={{ data_store }}/myid line=54.153.144.68
+     #lineinfile: dest={{ zookeeper.data_store }}/myid line="{{ zid }}"
+
+# Starting Zookeeper Service.
+   - name: Starting Zookeeper Server.
+     command: chdir={{ logging }} bash {{ soft_link_base_path }}/zookeeper/bin/zkServer.sh start
