@@ -32,12 +32,14 @@
 #zookeeper:
       - java_home: /usr/local/java/jdk
       - version: 3.4.10
+      - port: 2181
       - user: zkadmin
       - group: zkadmin
       - password: $6$SDOmVPRk$Jcb/qm2QTKsLABvBHx/CYtsgmShobAr7BwhWWbrrQIHfjndIzcbJhv1b2Dh2Rv.KgWhjTipT3MJUBQFf1g5O70
       - data_store: /mnt/data/zookeeper
       - logging: /mnt/data/zookeeper_logging
       - url: https://www.apache.org/dist/zookeeper/zookeeper-{{ version }}/zookeeper-{{ version }}.tar.gz
+      - log4j_properties_url: https://raw.githubusercontent.com/amitganvir23/aws-route53-update/master/kafka-script/zookeeper-templates/log4j.properties
 
   tasks:
    - name: Create a User `"{{ user }}"` for all our Hadoop Modules.
@@ -138,14 +140,27 @@
 
    - lineinfile:
        path: "{{ soft_link_base_path }}/zookeeper/conf/zoo.cfg"
-       regexp: '^dataDir='
-       line: 'dataDir={{ data_store }}'
+       line: "{{ item.line }}"
+       regexp: '^{{ item.regexp }}'
+     with_items:
+       - { regexp: 'clientPort=', line: 'clientPort={{ port }}' }
+       - { regexp: 'dataDir=', line: 'dataDir={{ data_store }}' }
+
+## updating log4j.properties
+
+   - name: Removing old log4j.properties file
+     file: path="{{ soft_link_base_path }}/zookeeper/conf/log4j.properties" state=absent
+
+   - name: Download log4j.properties from repo
+     get_url: url={{ log4j_properties_url }} dest={{ soft_link_base_path }}/zookeeper/conf/log4j.properties mode=0644 validate_certs=no
 
    - name: Configuring log4j.properties file
      lineinfile:
        path: "{{ soft_link_base_path }}/zookeeper/conf/log4j.properties"
-       regexp: '^zookeeper.log.dir='
-       line: 'zookeeper.log.dir={{ logging }}'
+       line: "{{ item.line }}"
+       regexp: '^{{ item.regexp }}'
+     with_items:
+       - { regexp: 'zookeeper.log.dir=', line: 'zookeeper.log.dir={{ logging }}' }
 
 #-----------------------------
    # Creating a directory for Zookeeper.
