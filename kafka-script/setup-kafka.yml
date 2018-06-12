@@ -15,10 +15,8 @@
 ##  JAVA
 # --------------------------------------
       - java_home: /usr/local/java/jdk
-      #- jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u101-b13/jdk-8u101-linux-x64.tar.gz
       - jdk_archive_url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.tar.gz
       - jdk_archive_filename: jdk-8u171-linux-x64.tar.gz
-      #- jdk_version: jdk1.8.0_101
       - jdk_version: jdk1.8.0_171
 # --------------------------------------
 ## Common -  Common Location information.
@@ -66,7 +64,6 @@
 #--------------------------------------
 
    #- name: Install JDK on Zookeeper instances
-   # Install JDK 1.7 and perform other bootstrap tasks
    - name: JDK | Oracle JDK | Make sure openjdk is uninstalled
      apt: pkg=openjdk-6-jdk state=absent
 
@@ -138,8 +135,6 @@
    - name: Configuring log4j.properties file
      lineinfile:
        path: "{{ soft_link_base_path }}/kafka/config/log4j.properties"
-       #regexp: '^log4j.rootLogger='
-       #line: 'log4j.rootLogger={{ log4j_rootlogger }}, stdout'
        line: "{{ item.line }}"
        regexp: '^{{ item.regexp }}'
      with_items:
@@ -151,13 +146,16 @@
        #regexp: '^log4j.rootLogger='
        line: 'kafka.logs.dir=logs'
   
-#   - name:  Updating Configuration File in kafka
-#     lineinfile:
-#       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
-#       line: "broker.id={{ item.0 + 1}}"
-#       regexp: '^broker.id='
-#     with_indexed_items:
-#       - "{{ private_ips.stdout_lines }}"
+
+##---- Configuring changes for server.properties
+#
+   - name: Removing old server.properties file
+     file:
+      path: "{{ soft_link_base_path }}/kafka/config/server.properties"
+      state: absent
+
+   - name: Download server.properties from repo
+     get_url: url=https://raw.githubusercontent.com/amitganvir23/aws-route53-update/master/kafka-script/kafka-templates/server.properties dest={{ soft_link_base_path }}/kafka/config/server.properties mode=0644 validate_certs=no
 
 
    - name: Collecting Private IP address of Zookeeper nodes
@@ -176,14 +174,6 @@
      shell: "hostname"
      register: hostname
 
-
-#   - name: Adding broker_id for server.properties file
-#     lineinfile:
-#       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
-#       line: "broker.id={{ item.0 + 1}}"
-#       regexp: '^broker.id='
-#     with_indexed_items:
-#       - "{{ private_ips.stdout_lines }}"
 
    - name: Adding parameters for server.properties file
      lineinfile:
