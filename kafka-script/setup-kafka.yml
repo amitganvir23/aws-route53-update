@@ -41,6 +41,7 @@
       - replication_factor: 1
       - partition_count: 8
       - url: http://www-us.apache.org/dist/kafka/{{ version }}/kafka_2.11-{{ version }}.tgz
+      - server_properties_url: https://raw.githubusercontent.com/amitganvir23/aws-route53-update/master/kafka-script/kafka-templates/server.properties
 
   tasks:
 #--------------------------------------
@@ -150,12 +151,10 @@
 ##---- Configuring changes for server.properties
 #
    - name: Removing old server.properties file
-     file:
-      path: "{{ soft_link_base_path }}/kafka/config/server.properties"
-      state: absent
+     file: path="{{ soft_link_base_path }}/kafka/config/server.properties" state=absent
 
    - name: Download server.properties from repo
-     get_url: url=https://raw.githubusercontent.com/amitganvir23/aws-route53-update/master/kafka-script/kafka-templates/server.properties dest={{ soft_link_base_path }}/kafka/config/server.properties mode=0644 validate_certs=no
+     get_url: url={{ server_properties_url }} dest={{ soft_link_base_path }}/kafka/config/server.properties mode=0644 validate_certs=no
 
 
    - name: Collecting Private IP address of Zookeeper nodes
