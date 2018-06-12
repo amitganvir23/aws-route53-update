@@ -167,13 +167,13 @@
      register: hostname
 
 
-   - name: Adding broker_id for server.properties file
-     lineinfile:
-       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
-       line: "broker.id={{ item.0 + 1}}"
-       regexp: '^broker.id='
-     with_indexed_items:
-       - "{{ private_ips.stdout_lines }}"
+#   - name: Adding broker_id for server.properties file
+#     lineinfile:
+#       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
+#       line: "broker.id={{ item.0 + 1}}"
+#       regexp: '^broker.id='
+#     with_indexed_items:
+#       - "{{ private_ips.stdout_lines }}"
 
    - name: Adding parameters for server.properties file
      lineinfile:
@@ -186,6 +186,12 @@
        - { regexp: 'log.dirs=', line: 'log.dirs={{ data_store }}' }
        - { regexp: 'zookeeper.connect=', line: 'zookeeper.connect={{ zookeeper_ip_combine.stdout }}' }
        - { regexp: 'broker.id=', line: 'broker.id={{ kafka_broker_id.stdout }}' }
+
+# Starting Kafka server in port 9091
+   - name: Starting Kafka server in port {{ port }}
+     lineinfile:
+       dest: "{{ soft_link_base_path }}/kafka/config/kafka_server_starter.sh"
+       line: "#!/bin/sh\necho -e \"Starting {{ port }} Server\"\nnohup sh {{ soft_link_base_path }}/kafka/bin/kafka-server-start.sh {{ soft_link_base_path }}/kafka/config/server.properties &"
 
    - name: Creating data directory for kafka logs
      file: path={{ data_store }} state=directory owner={{ user }} group={{ group }}
@@ -207,18 +213,12 @@
      debug: msg="{{output.stdout}}"
 
    - name: Lets through some Debug.stderr Output.
-     debug: msg="{{ output.stderr }}"
+     debug: msg="{{output.stderr}}"
 
 
 #--------------------------------------
 #Creating Topics
 #--------------------------------------
-
-# Starting Kafka server in port 9091
-   - name: "Starting Kafka server in port {{ port }}"
-       dest: "{{ soft_link_base_path }}/kafka/config/kafka_server_starter.sh"
-     line: "#!/bin/sh\necho -e \"Starting {{ port }} Server\"\nnohup sh {{ soft_link_base_path }}/kafka/bin/kafka-server-start.sh {{ soft_link_base_path }}/kafka/config/server.properties &"
-
 
 # Creating Topics for the first Time
    - name: Lets wait for 9092 to be available.
