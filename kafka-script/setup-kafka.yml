@@ -10,6 +10,7 @@
       - REGION: ap-southeast-2
       - ec2_tag_key: StackService
       - ec2_tag_value: glp-kafka-test-kafka
+      - ec2_tag_zookeerp_value: glp-kafka-test-zookeeper
 # --------------------------------------
 ##  JAVA
 # --------------------------------------
@@ -32,6 +33,7 @@
 #kafka:
       - version: 0.10.2.1
       - port: 9092
+      - zookeeper_port: 2181
       - data_store: /mnt/data/kafka
       - log4j_rootlogger: INFO
       - topics: [ A, B, C, D ]
@@ -43,15 +45,25 @@
       - url: http://www-us.apache.org/dist/kafka/{{ version }}/kafka_2.11-{{ version }}.tgz
 
   tasks:
+#--------------------------------------
+## Creating User for kafka
+#--------------------------------------
    - name: Create a User `"{{ user }}"` for all our Hadoop Modules.
      user: name={{ user }} password={{ password }}
 
-### ---- collecting Private IP
 
-   - name: Collecting Private IP address
+
+#--------------------------------------
+### ---- Collecting Private IPs of Kafka
+#--------------------------------------
+   - name: Collecting Private IP address of Kafka nodes
      shell: "aws --region {{ REGION }} ec2 describe-instances --filters \"Name=tag:{{ ec2_tag_key }},Values={{ ec2_tag_value }}\" \"Name=network-interface.addresses.private-ip-address,Values=*\" --query 'Reservations[*].Instances[*].{InstanceId:InstanceId,PrivateDnsName:PrivateDnsName,State:State.Name, IP:NetworkInterfaces[0].PrivateIpAddress}'|grep -w IP|cut -d ':' -f 2|tr -d ','|tr -d '\"'|sed 's/ //g'"
      register: private_ips
-### ----
+
+
+#--------------------------------------
+#Installing Java/Jdk
+#--------------------------------------
 
    #- name: Install JDK on Zookeeper instances
    # Install JDK 1.7 and perform other bootstrap tasks
@@ -101,7 +113,10 @@
        - javah
        - jar
        - jps
-##------ Download Kafka
+
+#--------------------------------------
+# Downloading and installing Kafka
+#--------------------------------------
    - name: Download Kafka
      get_url: url={{ url }} dest=/mnt/kafka_2.11-{{ version }}.tgz mode=0644 validate_certs=no
 
@@ -113,9 +128,10 @@
 
    - name: Creating a Symbolic Link in {{ install_base_path }}/kafka.
      file: src={{ install_base_path }}/kafka_2.11-{{ version }} path={{ soft_link_base_path }}/kafka state=link owner={{ user }} group={{ group }}
-##------
 
+#--------------------------------------
 ##------ Configuring Kafka
+#--------------------------------------
    - name: Creating data directory
      file: path=/mnt/data state=directory owner={{ user }} group={{ group }}
 
@@ -125,21 +141,26 @@
        regexp: '^log4j.rootLogger='
        line: 'log4j.rootLogger={{ log4j_rootlogger }}, stdout'
 
-   - name: Adding Zookeeper Private IP address and port in zoo.cfg file
-     lineinfile:
-       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
-       line: "broker.id={{ item.0 + 1}}"
-       regexp: '^broker.id='
-     with_indexed_items:
-       - "{{ private_ips.stdout_lines }}"
+#   - name:  Updating Configuration File in kafka
+#     lineinfile:
+#       path: "{{ soft_link_base_path }}/kafka/config/server.properties"
+#       line: "broker.id={{ item.0 + 1}}"
+#       regexp: '^broker.id='
+#     with_indexed_items:
+#       - "{{ private_ips.stdout_lines }}"
 
-##------
-   - name: Collecting Private IP address for Zookeeper
-     shell: "aws --region {{ REGION }} ec2 describe-instances --filters \"Name=tag:zookeeper,Values=vm1\" \"Name=network-interface.addresses.private-ip-address,Values=*\" --query 'Reservations[*].Instances[*].{InstanceId:InstanceId,PrivateDnsName:PrivateDnsName,State:State.Name, IP:NetworkInterfaces[0].PrivateIpAddress}'|grep -w IP|cut -d ':' -f 2|tr -d ','|tr -d '\"'|sed 's/ //g'"
+
+   - name: Collecting Private IP address of Zookeeper nodes
+     shell: "aws --region {{ REGION }} ec2 describe-instances --filters \"Name=tag:{{ ec2_tag_key }},Values={{ ec2_tag_zookeerp_value }}\" \"Name=network-interface.addresses.private-ip-address,Values=*\" --query 'Reservations[*].Instances[*].{InstanceId:InstanceId,PrivateDnsName:PrivateDnsName,State:State.Name, IP:NetworkInterfaces[0].PrivateIpAddress}'|grep -w IP|cut -d ':' -f 2|tr -d ','|tr -d '\"'|sed 's/ //g'"
      register: private_ips_zookeeper
 
-   - shell: "echo {{private_ips_zookeeper.stdout_lines}}|tr -d '[ ]' | tr -d '\"'|tr -d '[:alpha:]' | tr ',' '\\n'|sed '/:[0-9]*$/ ! s/$/:80/' | tr '\\n' ', ' | sed 's|,|, |g' | sed 's/,\ $//'"
+## Collecting zookeeperIP and merger it with port
+   - shell: "echo {{private_ips_zookeeper.stdout_lines}}|tr -d '[ ]' | tr -d '\"'|tr -d '[:alpha:]' | tr ',' '\\n'|sed '/:[0-9]*$/ ! s/$/:{{zookeeper_port}}/' | tr '\\n' ', ' | sed 's|,|, |g' | sed 's/,\ $//'"
      register: zookeeper_ip_combine
+
+## Broekr_ID, collecting counting numbers of kafka nodes
+   - shell: "echo {{ private_ips.stdout_lines }}|tr -d '[ ]'|tr -d '\"'|tr -d '[:alpha:]'|tr ',' '\n'|wc -l"
+     register: kafka_broker_id
 
    - name: "Initializing brokerid File for Zookeeper {{ inventory_hostname }}"
      shell: "hostname"
@@ -164,4 +185,48 @@
        - { regexp: 'advertised.host.name=', line: 'advertised.host.name={{ hostname.stdout }}' }
        - { regexp: 'log.dirs=', line: 'log.dirs={{ data_store }}' }
        - { regexp: 'zookeeper.connect=', line: 'zookeeper.connect={{ zookeeper_ip_combine.stdout }}' }
+       - { regexp: 'broker.id=', line: 'broker.id={{ kafka_broker_id.stdout }}' }
 
+   - name: Creating data directory for kafka logs
+     file: path={{ data_store }} state=directory owner={{ user }} group={{ group }}
+
+#--------------------------------------
+#Starting Kafka server
+#--------------------------------------
+
+   - name: Lets wait to see if we have Port {{ zookeeper_port }} is avialable.
+     wait_for: host="{{item.1}}" port="{{zookeeper_port}}" delay=5 timeout=15
+     with_indexed_items:
+       - "{{ private_ips_zookeeper.stdout_lines }}"
+
+   - name: Starting kafka server on port 9091/9092.
+     command: bash "{{ soft_link_base_path }}"/kafka/config/kafka_server_starter.sh
+     register: output
+
+   - name: Lets through some Debug.stdout Output.
+     debug: msg="{{output.stdout}}"
+
+   - name: Lets through some Debug.stderr Output.
+     debug: msg="{{ output.stderr }}"
+
+
+#--------------------------------------
+#Creating Topics
+#--------------------------------------
+
+# Starting Kafka server in port 9091
+   - name: "Starting Kafka server in port {{ port }}"
+       dest: "{{ soft_link_base_path }}/kafka/config/kafka_server_starter.sh"
+     line: "#!/bin/sh\necho -e \"Starting {{ port }} Server\"\nnohup sh {{ soft_link_base_path }}/kafka/bin/kafka-server-start.sh {{ soft_link_base_path }}/kafka/config/server.properties &"
+
+
+# Creating Topics for the first Time
+   - name: Lets wait for 9092 to be available.
+     wait_for: port={{ port }} delay=5 timeout=15
+
+   - name: Creating Topics.
+     command: bash "{{ soft_link_base_path }}"/kafka/bin/kafka-topics.sh --create --zookeeper {{ zookeeper_ip_combine.stdout }}  --replication-factor {{ replication_factor }} --partitions {{ partition_count }} --topic {{ item }}
+     with_items: "{{ topics }}"
+     when: kafka_broker_id.stdout == "1"
+ 
+#--------------------------------------
