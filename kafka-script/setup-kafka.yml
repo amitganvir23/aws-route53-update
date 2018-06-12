@@ -188,10 +188,15 @@
        - { regexp: 'broker.id=', line: 'broker.id={{ kafka_broker_id.stdout }}' }
 
 # Starting Kafka server in port 9091
-   - name: Starting Kafka server in port {{ port }}
+   - name: Create Kafka server script to start in port {{ port }}
      lineinfile:
        dest: "{{ soft_link_base_path }}/kafka/config/kafka_server_starter.sh"
        line: "#!/bin/sh\necho -e \"Starting {{ port }} Server\"\nnohup sh {{ soft_link_base_path }}/kafka/bin/kafka-server-start.sh {{ soft_link_base_path }}/kafka/config/server.properties &"
+       owner: "{{ user }}"
+       group: "{{ group }}"
+       mode: 0744
+       state: present
+       create: yes
 
    - name: Creating data directory for kafka logs
      file: path={{ data_store }} state=directory owner={{ user }} group={{ group }}
