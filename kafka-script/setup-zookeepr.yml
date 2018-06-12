@@ -7,9 +7,9 @@
 #  become_method: sudo
   gather_facts: no
   vars:
-      - REGION: ap-southeast-2
-      - ec2_tag_key: StackService
-      - ec2_tag_value: glp-kafka-test-zookeeper
+      - REGION: '{{ REGION }}'
+      - ec2_tag_key: '{{ ec2_tag_key }}'
+      - ec2_tag_value: '{{ ec2_tag_value }}'
 # --------------------------------------
 ##  JAVA
 # --------------------------------------
